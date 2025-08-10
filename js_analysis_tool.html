@@ -1,0 +1,983 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JS Analysis Tool - Bug Bounty Edition</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+            color: #00ff88;
+            font-family: 'Courier New', monospace;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #00ff88;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.3);
+        }
+
+        h1 {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #00ff88;
+            text-shadow: 0 0 10px rgba(0, 255, 136, 0.5);
+            font-size: 2.5rem;
+        }
+
+        .subtitle {
+            text-align: center;
+            margin-bottom: 40px;
+            color: #888;
+            font-size: 1.1rem;
+        }
+
+        .upload-section {
+            background: rgba(0, 40, 20, 0.3);
+            border: 2px dashed #00ff88;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            margin-bottom: 30px;
+            transition: all 0.3s ease;
+        }
+
+        .upload-section:hover {
+            background: rgba(0, 40, 20, 0.5);
+            box-shadow: 0 0 15px rgba(0, 255, 136, 0.2);
+        }
+
+        .file-input {
+            width: 100%;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #00ff88;
+            border-radius: 5px;
+            color: #00ff88;
+            font-family: 'Courier New', monospace;
+            font-size: 1rem;
+        }
+
+        .file-input::file-selector-button {
+            background: #00ff88;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            margin-right: 15px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .analysis-options {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .option-group {
+            background: rgba(0, 40, 20, 0.2);
+            border: 1px solid #00ff88;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .option-group h3 {
+            color: #00ff88;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+            display: flex;
+            align-items: center;
+        }
+
+        .option-group h3::before {
+            content: '';
+            width: 10px;
+            height: 10px;
+            background: #00ff88;
+            border-radius: 50%;
+            margin-right: 10px;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .checkbox-container {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            cursor: pointer;
+        }
+
+        .checkbox-container input[type="checkbox"] {
+            margin-right: 10px;
+            transform: scale(1.2);
+            accent-color: #00ff88;
+        }
+
+        .checkbox-container label {
+            cursor: pointer;
+            color: #ccc;
+            transition: color 0.3s ease;
+        }
+
+        .checkbox-container:hover label {
+            color: #00ff88;
+        }
+
+        .custom-pattern {
+            width: 100%;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            border: 1px solid #555;
+            border-radius: 5px;
+            color: #00ff88;
+            font-family: 'Courier New', monospace;
+            margin-top: 10px;
+        }
+
+        .action-buttons {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .btn {
+            background: linear-gradient(45deg, #00ff88, #00cc6a);
+            color: #000;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 25px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin: 0 10px;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 255, 136, 0.4);
+        }
+
+        .btn:disabled {
+            background: #555;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #00ff88, #00cc6a);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .results-section {
+            background: rgba(0, 0, 0, 0.7);
+            border: 1px solid #00ff88;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .results-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #00ff88;
+            padding-bottom: 10px;
+        }
+
+        .download-btn {
+            background: #ff6b35;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+        }
+
+        .result-category {
+            background: rgba(0, 40, 20, 0.2);
+            border: 1px solid #00ff88;
+            border-radius: 8px;
+            padding: 15px;
+        }
+
+        .category-title {
+            color: #00ff88;
+            font-size: 1.1rem;
+            font-weight: bold;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .count-badge {
+            background: #00ff88;
+            color: #000;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .result-list {
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+        }
+
+        .result-item {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 4px;
+            border-left: 3px solid #00ff88;
+            word-break: break-all;
+        }
+
+        .no-results {
+            color: #888;
+            font-style: italic;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .file-info {
+            background: rgba(0, 40, 20, 0.2);
+            border: 1px solid #00ff88;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .info-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 5px;
+        }
+
+        .info-label {
+            color: #888;
+        }
+
+        .info-value {
+            color: #00ff88;
+            font-weight: bold;
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #00ff88;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 JS Analysis Tool</h1>
+        <div class="subtitle">Bug Bounty Edition - Extract secrets, APIs, and sensitive data from JavaScript files</div>
+
+        <!-- File Upload Section -->
+        <div class="upload-section">
+            <h3>📁 Upload JavaScript File</h3>
+            <input type="file" id="fileInput" class="file-input" accept=".js,.json" />
+            <p style="margin-top: 15px; color: #888;">Supports .js and .json files up to 50MB</p>
+        </div>
+
+        <!-- File Info -->
+        <div id="fileInfo" class="file-info">
+            <div class="info-row">
+                <span class="info-label">File Name:</span>
+                <span id="fileName" class="info-value">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">File Size:</span>
+                <span id="fileSize" class="info-value">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">Last Modified:</span>
+                <span id="fileDate" class="info-value">-</span>
+            </div>
+        </div>
+
+        <!-- Analysis Options -->
+        <div class="analysis-options">
+            <div class="option-group">
+                <h3>🌐 URLs & Endpoints</h3>
+                <div class="checkbox-container">
+                    <input type="checkbox" id="urls" checked>
+                    <label for="urls">HTTP/HTTPS URLs</label>
+                </div>
+                <div class="checkbox-container">
+                    <input type="checkbox" id="apis" checked>
+                    <label for="apis">API Endpoints (/api/, /v1/, etc.)</label>
+                </div>
+                <div class="checkbox-container">
+                    <input type="checkbox" id="domains" checked>
+                    <label for="domains">Domain References</label>
+                </div>
+            </div>
+
+            <div class="option-group">
+                <h3>🔑 Secrets & Keys</h3>
+                <div class="checkbox-container">
+                    <input type="checkbox" id="apiKeys" checked>
+                    <label for="apiKeys">API Keys & Tokens</label>
+                </div>
+                <div class="checkbox-container">
+                    <input type="checkbox" id="credentials" checked>
+                    <label for="credentials">Passwords & Credentials</label>
+                </div>
+                <div class="checkbox-container">
+                    <input type="checkbox" id="jwt" checked>
+                    <label for="jwt">JWT Tokens & Secrets</label>
+                </div>
+            </div>
+
+            <div class="option-group">
+                <h3>⚙️ Configuration</h3>
+                <div class="checkbox-container">
+                    <input type="checkbox" id="configs" checked>
+                    <label for="configs">Config Objects</label>
+                </div>
+                <div class="checkbox-container">
+                    <input type="checkbox" id="env" checked>
+                    <label for="env">Environment Variables</label>
+                </div>
+                <div class="checkbox-container">
+                    <input type="checkbox" id="database" checked>
+                    <label for="database">Database Connections</label>
+                </div>
+            </div>
+
+            <div class="option-group">
+                <h3>📂 Files & Assets</h3>
+                <div class="checkbox-container">
+                    <input type="checkbox" id="files" checked>
+                    <label for="files">File Paths & References</label>
+                </div>
+                <div class="checkbox-container">
+                    <input type="checkbox" id="sourcemaps" checked>
+                    <label for="sourcemaps">Source Maps</label>
+                </div>
+                <div class="checkbox-container">
+                    <input type="checkbox" id="comments" checked>
+                    <label for="comments">Comments & TODOs</label>
+                </div>
+            </div>
+
+            <div class="option-group">
+                <h3>🔍 Custom Search</h3>
+                <div class="checkbox-container">
+                    <input type="checkbox" id="customEnabled">
+                    <label for="customEnabled">Custom Regex Pattern</label>
+                </div>
+                <input type="text" id="customPattern" class="custom-pattern" placeholder="Enter regex pattern..." disabled>
+            </div>
+
+            <div class="option-group">
+                <h3>🎯 Bug Bounty Specific</h3>
+                <div class="checkbox-container">
+                    <input type="checkbox" id="sensitive" checked>
+                    <label for="sensitive">Sensitive Data Patterns</label>
+                </div>
+                <div class="checkbox-container">
+                    <input type="checkbox" id="internal" checked>
+                    <label for="internal">Internal Network References</label>
+                </div>
+                <div class="checkbox-container">
+                    <input type="checkbox" id="debug" checked>
+                    <label for="debug">Debug & Development Info</label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="action-buttons">
+            <button id="analyzeBtn" class="btn" disabled>🚀 Analyze JavaScript</button>
+            <button id="clearBtn" class="btn">🗑️ Clear Results</button>
+        </div>
+
+        <!-- Progress Bar -->
+        <div id="progressBar" class="progress-bar">
+            <div id="progressFill" class="progress-fill"></div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="resultsSection" class="results-section">
+            <div class="results-header">
+                <h2>📊 Analysis Results</h2>
+                <button id="downloadBtn" class="download-btn">💾 Download Report</button>
+            </div>
+            <div id="resultsGrid" class="results-grid"></div>
+        </div>
+    </div>
+
+    <script>
+        let analysisResults = {};
+        let currentFile = null;
+
+        // DOM Elements
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const progressBar = document.getElementById('progressBar');
+        const progressFill = document.getElementById('progressFill');
+        const resultsSection = document.getElementById('resultsSection');
+        const resultsGrid = document.getElementById('resultsGrid');
+        const downloadBtn = document.getElementById('downloadBtn');
+        const customEnabled = document.getElementById('customEnabled');
+        const customPattern = document.getElementById('customPattern');
+
+        // Event Listeners
+        fileInput.addEventListener('change', handleFileSelect);
+        analyzeBtn.addEventListener('click', analyzeFile);
+        clearBtn.addEventListener('click', clearResults);
+        downloadBtn.addEventListener('click', downloadReport);
+        customEnabled.addEventListener('change', toggleCustomPattern);
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            currentFile = file;
+            
+            // Show file info
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('fileSize').textContent = formatFileSize(file.size);
+            document.getElementById('fileDate').textContent = new Date(file.lastModified).toLocaleString();
+            fileInfo.style.display = 'block';
+            
+            // Enable analyze button
+            analyzeBtn.disabled = false;
+        }
+
+        function toggleCustomPattern() {
+            customPattern.disabled = !customEnabled.checked;
+            if (customEnabled.checked) {
+                customPattern.focus();
+            }
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        async function analyzeFile() {
+            if (!currentFile) return;
+
+            // Show progress
+            progressBar.style.display = 'block';
+            analyzeBtn.disabled = true;
+            analyzeBtn.textContent = '🔄 Analyzing...';
+
+            try {
+                // Read file content
+                const content = await readFileContent(currentFile);
+                updateProgress(20);
+
+                // Perform analysis
+                analysisResults = await performAnalysis(content);
+                updateProgress(90);
+
+                // Display results
+                displayResults();
+                updateProgress(100);
+
+                // Show results section
+                resultsSection.style.display = 'block';
+                resultsSection.scrollIntoView({ behavior: 'smooth' });
+
+            } catch (error) {
+                alert('Error analyzing file: ' + error.message);
+            } finally {
+                // Reset UI
+                setTimeout(() => {
+                    progressBar.style.display = 'none';
+                    progressFill.style.width = '0%';
+                    analyzeBtn.disabled = false;
+                    analyzeBtn.textContent = '🚀 Analyze JavaScript';
+                }, 1000);
+            }
+        }
+
+        function readFileContent(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = e => resolve(e.target.result);
+                reader.onerror = e => reject(new Error('Failed to read file'));
+                reader.readAsText(file);
+            });
+        }
+
+        function updateProgress(percent) {
+            progressFill.style.width = percent + '%';
+        }
+
+        async function performAnalysis(content) {
+            const results = {};
+
+            if (document.getElementById('urls').checked) {
+                results.urls = extractUrls(content);
+            }
+
+            if (document.getElementById('apis').checked) {
+                results.apis = extractApiEndpoints(content);
+            }
+
+            if (document.getElementById('domains').checked) {
+                results.domains = extractDomains(content);
+            }
+
+            if (document.getElementById('apiKeys').checked) {
+                results.apiKeys = extractApiKeys(content);
+            }
+
+            if (document.getElementById('credentials').checked) {
+                results.credentials = extractCredentials(content);
+            }
+
+            if (document.getElementById('jwt').checked) {
+                results.jwt = extractJwtTokens(content);
+            }
+
+            if (document.getElementById('configs').checked) {
+                results.configs = extractConfigs(content);
+            }
+
+            if (document.getElementById('env').checked) {
+                results.env = extractEnvVars(content);
+            }
+
+            if (document.getElementById('database').checked) {
+                results.database = extractDatabaseConnections(content);
+            }
+
+            if (document.getElementById('files').checked) {
+                results.files = extractFilePaths(content);
+            }
+
+            if (document.getElementById('sourcemaps').checked) {
+                results.sourcemaps = extractSourceMaps(content);
+            }
+
+            if (document.getElementById('comments').checked) {
+                results.comments = extractComments(content);
+            }
+
+            if (document.getElementById('sensitive').checked) {
+                results.sensitive = extractSensitiveData(content);
+            }
+
+            if (document.getElementById('internal').checked) {
+                results.internal = extractInternalReferences(content);
+            }
+
+            if (document.getElementById('debug').checked) {
+                results.debug = extractDebugInfo(content);
+            }
+
+            if (customEnabled.checked && customPattern.value) {
+                results.custom = extractCustomPattern(content, customPattern.value);
+            }
+
+            return results;
+        }
+
+        // Extraction Functions
+        function extractUrls(content) {
+            const urlPattern = /https?:\/\/[^\s"'`>)]+/gi;
+            return [...new Set(content.match(urlPattern) || [])];
+        }
+
+        function extractApiEndpoints(content) {
+            const apiPattern = /['"]([/](?:api|v\d+)[/][^'"]*)['"]/gi;
+            const matches = [];
+            let match;
+            while ((match = apiPattern.exec(content)) !== null) {
+                matches.push(match[1]);
+            }
+            return [...new Set(matches)];
+        }
+
+        function extractDomains(content) {
+            const domainPattern = /(?:https?:\/\/)?([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(?:\/[^\s"'`>)]*)?/gi;
+            return [...new Set(content.match(domainPattern) || [])];
+        }
+
+        function extractApiKeys(content) {
+            const patterns = [
+                /(api[_-]?key|apikey)['"\s]*[:=]['"\s]*([a-zA-Z0-9_-]{10,})/gi,
+                /(secret|token)['"\s]*[:=]['"\s]*([a-zA-Z0-9_-]{10,})/gi,
+                /(bearer\s+)([a-zA-Z0-9_-]{10,})/gi
+            ];
+            
+            const results = [];
+            patterns.forEach(pattern => {
+                let match;
+                while ((match = pattern.exec(content)) !== null) {
+                    results.push(match[0]);
+                }
+            });
+            return [...new Set(results)];
+        }
+
+        function extractCredentials(content) {
+            const patterns = [
+                /(password|pwd)['"\s]*[:=]['"\s]*([^'"]{3,})/gi,
+                /(username|user)['"\s]*[:=]['"\s]*([^'"]{3,})/gi,
+                /(client[_-]?id)['"\s]*[:=]['"\s]*([a-zA-Z0-9_-]{10,})/gi
+            ];
+            
+            const results = [];
+            patterns.forEach(pattern => {
+                let match;
+                while ((match = pattern.exec(content)) !== null) {
+                    results.push(match[0]);
+                }
+            });
+            return [...new Set(results)];
+        }
+
+        function extractJwtTokens(content) {
+            const jwtPattern = /eyJ[A-Za-z0-9_-]*\.eyJ[A-Za-z0-9_-]*\.[A-Za-z0-9_-]*/g;
+            return [...new Set(content.match(jwtPattern) || [])];
+        }
+
+        function extractConfigs(content) {
+            const configPattern = /(config|settings|options)['":\s]*['":]?\s*\{[^}]*\}/gi;
+            return [...new Set(content.match(configPattern) || [])];
+        }
+
+        function extractEnvVars(content) {
+            const envPattern = /(process\.env\.[A-Z_]+|[A-Z_]{3,}['":\s]*['":])/gi;
+            return [...new Set(content.match(envPattern) || [])];
+        }
+
+        function extractDatabaseConnections(content) {
+            const dbPattern = /(mongodb|mysql|postgres|redis|sqlite)['"\s]*[:=]['"\s]*([^'"]+)/gi;
+            const results = [];
+            let match;
+            while ((match = dbPattern.exec(content)) !== null) {
+                results.push(match[0]);
+            }
+            return [...new Set(results)];
+        }
+
+        function extractFilePaths(content) {
+            const filePattern = /['"]([/][^'"]*\.(js|css|png|jpg|gif|svg|ico|json|xml|txt))['"]]/gi;
+            const matches = [];
+            let match;
+            while ((match = filePattern.exec(content)) !== null) {
+                matches.push(match[1]);
+            }
+            return [...new Set(matches)];
+        }
+
+        function extractSourceMaps(content) {
+            const sourceMapPattern = /sourceMappingURL=([^"'\s]*)/gi;
+            const matches = [];
+            let match;
+            while ((match = sourceMapPattern.exec(content)) !== null) {
+                matches.push(match[1]);
+            }
+            return [...new Set(matches)];
+        }
+
+        function extractComments(content) {
+            const commentPattern = /(?:\/\/.*$|\/\*[\s\S]*?\*\/)/gm;
+            return [...new Set(content.match(commentPattern) || [])].slice(0, 50); // Limit to 50
+        }
+
+        function extractSensitiveData(content) {
+            const patterns = [
+                /['"]sk_live_[a-zA-Z0-9]+['"]/gi, // Stripe live keys
+                /['"]pk_live_[a-zA-Z0-9]+['"]/gi, // Stripe public keys
+                /['"]AKIA[0-9A-Z]{16}['"]/gi,     // AWS Access Keys
+                /['"]AIza[0-9A-Za-z_-]{35}['"]/gi // Google API Keys
+            ];
+            
+            const results = [];
+            patterns.forEach(pattern => {
+                let match;
+                while ((match = pattern.exec(content)) !== null) {
+                    results.push(match[0]);
+                }
+            });
+            return [...new Set(results)];
+        }
+
+        function extractInternalReferences(content) {
+            const internalPattern = /(localhost|127\.0\.0\.1|192\.168\.|10\.|172\.16\.|internal|staging|dev|test)/gi;
+            return [...new Set(content.match(internalPattern) || [])];
+        }
+
+        function extractDebugInfo(content) {
+            const debugPattern = /(console\.log|debugger|TODO|FIXME|XXX|HACK)/gi;
+            return [...new Set(content.match(debugPattern) || [])];
+        }
+
+        function extractCustomPattern(content, pattern) {
+            try {
+                const regex = new RegExp(pattern, 'gi');
+                return [...new Set(content.match(regex) || [])];
+            } catch (error) {
+                return [`Error in regex: ${error.message}`];
+            }
+        }
+
+        function displayResults() {
+            resultsGrid.innerHTML = '';
+
+            const categories = [
+                { key: 'urls', title: '🌐 URLs', color: '#00ff88' },
+                { key: 'apis', title: '🔗 API Endpoints', color: '#ff6b35' },
+                { key: 'domains', title: '🌍 Domains', color: '#4ecdc4' },
+                { key: 'apiKeys', title: '🔑 API Keys', color: '#ff4757' },
+                { key: 'credentials', title: '👤 Credentials', color: '#ff6b35' },
+                { key: 'jwt', title: '🎫 JWT Tokens', color: '#ffa502' },
+                { key: 'configs', title: '⚙️ Configurations', color: '#3742fa' },
+                { key: 'env', title: '🌿 Environment Vars', color: '#2ed573' },
+                { key: 'database', title: '🗄️ Database', color: '#5352ed' },
+                { key: 'files', title: '📂 File Paths', color: '#70a1ff' },
+                { key: 'sourcemaps', title: '🗺️ Source Maps', color: '#7bed9f' },
+                { key: 'comments', title: '💬 Comments', color: '#a4b0be' },
+                { key: 'sensitive', title: '🚨 Sensitive Data', color: '#ff4757' },
+                { key: 'internal', title: '🏠 Internal Refs', color: '#ff9ff3' },
+                { key: 'debug', title: '🐛 Debug Info', color: '#fffa65' },
+                { key: 'custom', title: '🔍 Custom Pattern', color: '#c44569' }
+            ];
+
+            categories.forEach(category => {
+                if (analysisResults[category.key] && analysisResults[category.key].length > 0) {
+                    createResultCategory(category, analysisResults[category.key]);
+                }
+            });
+        }
+
+        function createResultCategory(category, results) {
+            const categoryDiv = document.createElement('div');
+            categoryDiv.className = 'result-category';
+
+            const title = document.createElement('div');
+            title.className = 'category-title';
+            title.innerHTML = category.title + ' <span class="count-badge">' + results.length + '</span>';
+
+            const list = document.createElement('div');
+            list.className = 'result-list';
+
+            if (results.length === 0) {
+                list.innerHTML = '<div class="no-results">No results found</div>';
+            } else {
+                results.forEach(result => {
+                    const item = document.createElement('div');
+                    item.className = 'result-item';
+                    item.textContent = result;
+                    list.appendChild(item);
+                });
+            }
+
+            categoryDiv.appendChild(title);
+            categoryDiv.appendChild(list);
+            resultsGrid.appendChild(categoryDiv);
+        }
+
+        function clearResults() {
+            resultsSection.style.display = 'none';
+            analysisResults = {};
+            currentFile = null;
+            fileInput.value = '';
+            fileInfo.style.display = 'none';
+            analyzeBtn.disabled = true;
+        }
+
+        function downloadReport() {
+            const report = generateReport();
+            const blob = new Blob([report], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'js-analysis-' + (currentFile ? currentFile.name : 'report') + '-' + new Date().toISOString().slice(0,10) + '.txt';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function generateReport() {
+            const timestamp = new Date().toISOString();
+            let report = '🔍 JavaScript Analysis Report\n';
+            report += 'Generated: ' + timestamp + '\n';
+            report += 'File: ' + (currentFile ? currentFile.name : 'Unknown') + '\n';
+            report += 'Size: ' + (currentFile ? formatFileSize(currentFile.size) : 'Unknown') + '\n\n';
+            report += '═══════════════════════════════════════════════════════════════\n\n';
+
+            const categories = [
+                { key: 'urls', title: '🌐 URLs & HTTP Endpoints' },
+                { key: 'apis', title: '🔗 API Endpoints' },
+                { key: 'domains', title: '🌍 Domain References' },
+                { key: 'apiKeys', title: '🔑 API Keys & Tokens' },
+                { key: 'credentials', title: '👤 Credentials & Authentication' },
+                { key: 'jwt', title: '🎫 JWT Tokens' },
+                { key: 'configs', title: '⚙️ Configuration Objects' },
+                { key: 'env', title: '🌿 Environment Variables' },
+                { key: 'database', title: '🗄️ Database Connections' },
+                { key: 'files', title: '📂 File Paths & Assets' },
+                { key: 'sourcemaps', title: '🗺️ Source Maps' },
+                { key: 'comments', title: '💬 Comments & Developer Notes' },
+                { key: 'sensitive', title: '🚨 Sensitive Data Patterns' },
+                { key: 'internal', title: '🏠 Internal Network References' },
+                { key: 'debug', title: '🐛 Debug & Development Info' },
+                { key: 'custom', title: '🔍 Custom Pattern Results' }
+            ];
+
+            let totalFindings = 0;
+
+            categories.forEach(category => {
+                const results = analysisResults[category.key];
+                if (results && results.length > 0) {
+                    totalFindings += results.length;
+                    report += '\n📊 ' + category.title + '\n';
+                    report += 'Found: ' + results.length + ' items\n';
+                    report += '─'.repeat(50) + '\n';
+                    
+                    results.forEach((item, index) => {
+                        const num = (index + 1).toString().padStart(3, ' ');
+                        report += num + '. ' + item + '\n';
+                    });
+                    report += '\n';
+                }
+            });
+
+            report += '\n═══════════════════════════════════════════════════════════════\n';
+            report += '📈 SUMMARY\n';
+            report += '═══════════════════════════════════════════════════════════════\n';
+            report += 'Total Categories Analyzed: ' + categories.length + '\n';
+            report += 'Total Findings: ' + totalFindings + '\n';
+            report += 'Analysis Completed: ' + timestamp + '\n';
+            
+            // Risk Assessment
+            report += '\n🎯 RISK ASSESSMENT\n';
+            report += '─'.repeat(30) + '\n';
+            
+            let riskLevel = 'LOW';
+            let riskFindings = [];
+            
+            if (analysisResults.apiKeys && analysisResults.apiKeys.length > 0) {
+                riskLevel = 'HIGH';
+                riskFindings.push('🔴 API Keys Found: ' + analysisResults.apiKeys.length);
+            }
+            
+            if (analysisResults.credentials && analysisResults.credentials.length > 0) {
+                riskLevel = 'HIGH';
+                riskFindings.push('🔴 Credentials Found: ' + analysisResults.credentials.length);
+            }
+            
+            if (analysisResults.jwt && analysisResults.jwt.length > 0) {
+                riskLevel = 'MEDIUM';
+                riskFindings.push('🟡 JWT Tokens Found: ' + analysisResults.jwt.length);
+            }
+            
+            if (analysisResults.sensitive && analysisResults.sensitive.length > 0) {
+                riskLevel = 'HIGH';
+                riskFindings.push('🔴 Sensitive Data Found: ' + analysisResults.sensitive.length);
+            }
+            
+            if (analysisResults.internal && analysisResults.internal.length > 0) {
+                if (riskLevel === 'LOW') riskLevel = 'MEDIUM';
+                riskFindings.push('🟡 Internal References: ' + analysisResults.internal.length);
+            }
+            
+            report += 'Risk Level: ' + riskLevel + '\n';
+            if (riskFindings.length > 0) {
+                report += 'Risk Factors:\n';
+                riskFindings.forEach(finding => {
+                    report += '  ' + finding + '\n';
+                });
+            }
+            
+            report += '\n🔗 POTENTIAL BUG BOUNTY FINDINGS\n';
+            report += '─'.repeat(35) + '\n';
+            
+            if (analysisResults.apiKeys && analysisResults.apiKeys.length > 0) {
+                report += '• API Key Disclosure (High Priority)\n';
+            }
+            if (analysisResults.credentials && analysisResults.credentials.length > 0) {
+                report += '• Credential Exposure (High Priority)\n';
+            }
+            if (analysisResults.configs && analysisResults.configs.length > 0) {
+                report += '• Configuration Information Disclosure\n';
+            }
+            if (analysisResults.internal && analysisResults.internal.length > 0) {
+                report += '• Internal Infrastructure Disclosure\n';
+            }
+            if (analysisResults.apis && analysisResults.apis.length > 0) {
+                report += '• API Endpoint Enumeration\n';
+            }
+            
+            report += '\n═══════════════════════════════════════════════════════════════\n';
+            report += 'Generated by JS Analysis Tool - Bug Bounty Edition\n';
+            report += 'Report ID: ' + Math.random().toString(36).substr(2, 9).toUpperCase() + '\n';
+            report += '═══════════════════════════════════════════════════════════════\n';
+
+            return report;
+        }
+    </script>
+</body>
+</html>
+            
